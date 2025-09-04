@@ -241,5 +241,3 @@ spark-submit \
   --deploy-mode cluster \
   network-monitoring-app.jar
 
-# Access Tableau dashboard
-open http://tableau-dashboard.company.com/network-monitoring
