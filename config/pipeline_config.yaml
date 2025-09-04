@@ -1,0 +1,438 @@
+# Real-Time Network Monitoring Pipeline Configuration
+# Centralized configuration for all components
+
+# Application Information
+application:
+  name: "Real-Time Network Monitoring"
+  version: "1.0.0"
+  description: "High-performance network log processing with Kafka and Spark"
+  environment: "development"  # development, staging, production
+  debug: true
+
+# Kafka Configuration
+kafka:
+  # Connection settings
+  bootstrap_servers: "localhost:9092"
+  security_protocol: "PLAINTEXT"
+  client_id: "network-monitoring-client"
+  
+  # Producer configuration
+  producer:
+    acks: "all"
+    retries: 5
+    batch_size: 32768  # 32KB
+    linger_ms: 5
+    buffer_memory: 67108864  # 64MB
+    compression_type: "snappy"
+    max_request_size: 1048576  # 1MB
+    request_timeout_ms: 30000
+    retry_backoff_ms: 100
+    
+  # Consumer configuration
+  consumer:
+    group_id: "network-monitoring-consumer"
+    auto_offset_reset: "earliest"
+    enable_auto_commit: true
+    auto_commit_interval_ms: 5000
+    session_timeout_ms: 30000
+    max_poll_records: 1000
+    fetch_max_bytes: 52428800  # 50MB
+    
+  # Topic configuration
+  topics:
+    network_logs_info: "network-logs-info"
+    network_logs_warning: "network-logs-warning"
+    network_logs_error: "network-logs-error"
+    network_logs_critical: "network-logs-critical"
+    processed_metrics: "processed-metrics"
+    alerts: "network-alerts"
+    
+  # Topic creation settings
+  topic_config:
+    num_partitions: 6
+    replication_factor: 1
+    retention_ms: 604800000  # 7 days
+    segment_ms: 3600000      # 1 hour
+    cleanup_policy: "delete"
+    compression_type: "snappy"
+    min_insync_replicas: 1
+
+# Apache Spark Configuration
+spark:
+  # Application settings
+  app_name: "NetworkMonitoringStreaming"
+  master: "local[*]"  # Use spark://spark-master:7077 for cluster mode
+  
+  # Resource allocation
+  executor:
+    memory: "2g"
+    cores: 2
+    instances: 3
+  driver:
+    memory: "1g"
+    cores: 1
+    max_result_size: "1g"
+    
+  # Streaming configuration
+  streaming:
+    batch_duration: "30 seconds"
+    checkpoint_location: "/checkpoints/network-monitoring"
+    max_rate_per_partition: 1000
+    backpressure_enabled: true
+    watermark_delay: "2 minutes"
+    
+  # Performance optimization
+  sql:
+    adaptive_enabled: true
+    adaptive_coalescePartitions_enabled: true
+    adaptive_skewJoin_enabled: true
+    execution_arrow_pyspark_enabled: true
+    
+  # Serialization
+  serializer: "org.apache.spark.serializer.KryoSerializer"
+  
+  # Kafka integration
+  kafka:
+    bootstrap_servers: "localhost:9092"
+    max_offsets_per_trigger: 10000
+    
+  # Storage configuration
+  storage:
+    output_path: "/data/processed"
+    format: "parquet"
+    partition_columns: ["year", "month", "day", "hour"]
+    write_mode: "append"
+
+# Database Configuration
+databases:
+  # PostgreSQL for metadata and configuration
+  postgres:
+    host: "localhost"
+    port: 5432
+    database: "network_monitoring"
+    username: "postgres"
+    password: "postgres123"
+    pool_size: 10
+    max_overflow: 20
+    pool_timeout: 30
+    
+  # Redis for caching and session management
+  redis:
+    host: "localhost"
+    port: 6379
+    db: 0
+    password: null
+    socket_timeout: 5
+    socket_connect_timeout: 5
+    retry_on_timeout: true
+    max_connections: 20
+    
+  # Azure Data Explorer (Kusto) - for production
+  kusto:
+    cluster_url: "https://networkmonitoring.eastus.kusto.windows.net"
+    database: "NetworkLogs"
+    table: "NetworkMetrics"
+    authentication_method: "device_code"  # or managed_identity
+    batch_size: 1000
+    flush_interval: 300  # 5 minutes
+
+# Data Processing Configuration
+data_processing:
+  # Log ingestion settings
+  ingestion:
+    batch_size: 1000
+    batch_timeout: 30  # seconds
+    max_retries: 3
+    retry_backoff: 2   # exponential backoff multiplier
+    
+  # Data validation
+  validation:
+    enable_schema_validation: true
+    quality_threshold: 0.90
+    completeness_threshold: 0.85
+    null_value_handling: "default"  # default, skip, error
+    
+  # Data enrichment
+  enrichment:
+    enable_geolocation: true
+    enable_threat_intelligence: false
+    enable_asset_correlation: true
+    ip_reputation_check: false
+    
+  # Windowing configuration
+  windowing:
+    window_duration: "5 minutes"
+    slide_duration: "1 minute"
+    watermark_threshold: "2 minutes"
+    late_data_threshold: "10 minutes"
+
+# Anomaly Detection Configuration
+anomaly_detection:
+  # Thresholds for different anomaly types
+  thresholds:
+    high_volume: 1000        # logs per minute
+    high_latency: 5000       # milliseconds
+    failure_rate: 0.1        # 10% failure rate
+    data_exfiltration: 10485760  # 10MB in bytes
+    port_scanning: 50        # unique ports accessed
+    connection_attempts: 100  # failed connections per minute
+    
+  # Risk scoring
+  risk_scoring:
+    weights:
+      volume_anomaly: 0.2
+      latency_anomaly: 0.15
+      failure_rate_anomaly: 0.25
+      data_transfer_anomaly: 0.3
+      port_scanning_anomaly: 0.05
+      reputation_score: 0.05
+      
+    # Risk levels
+    levels:
+      low: 0.3
+      medium: 0.5
+      high: 0.7
+      critical: 0.8
+      
+  # Machine learning settings
+  ml_models:
+    isolation_forest:
+      contamination: 0.1
+      n_estimators: 100
+      random_state: 42
+      
+    statistical_outlier:
+      z_score_threshold: 3
+      modified_z_score_threshold: 3.5
+      
+    time_series:
+      seasonal_decompose: true
+      trend_window: 100
+      seasonal_periods: 24  # hours
+
+# Alerting Configuration
+alerting:
+  # General settings
+  enabled: true
+  batch_size: 100
+  processing_interval: 30  # seconds
+  
+  # Alert levels and actions
+  levels:
+    INFO:
+      enabled: true
+      notification_channels: ["log"]
+      
+    WARNING:
+      enabled: true
+      notification_channels: ["log", "email"]
+      
+    ERROR:
+      enabled: true
+      notification_channels: ["log", "email", "slack"]
+      
+    CRITICAL:
+      enabled: true
+      notification_channels: ["log", "email", "slack", "sms", "autoscale"]
+      immediate_notification: true
+      
+  # Notification channels
+  notifications:
+    email:
+      smtp_server: "smtp.company.com"
+      smtp_port: 587
+      username: "alerts@company.com"
+      password: "password123"
+      recipients: ["admin@company.com", "ops@company.com"]
+      
+    slack:
+      webhook_url: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+      channel: "#network-monitoring-alerts"
+      username: "NetworkMonitor Bot"
+      
+    sms:
+      service: "twilio"  # or aws_sns
+      account_sid: "YOUR_TWILIO_SID"
+      auth_token: "YOUR_TWILIO_TOKEN"
+      phone_numbers: ["+1234567890", "+0987654321"]
+      
+  # Auto-scaling triggers
+  autoscaling:
+    enabled: true
+    kubernetes_cluster: "network-monitoring-cluster"
+    scale_up_threshold: 0.8    # 80% CPU/memory
+    scale_down_threshold: 0.2  # 20% CPU/memory
+    min_replicas: 3
+    max_replicas: 20
+    cool_down_period: 300      # 5 minutes
+
+# Monitoring and Metrics
+monitoring:
+  # Prometheus configuration
+  prometheus:
+    enabled: true
+    port: 9090
+    scrape_interval: "15s"
+    evaluation_interval: "15s"
+    
+  # Application metrics
+  metrics:
+    enable_application_metrics: true
+    enable_jvm_metrics: true
+    enable_kafka_metrics: true
+    enable_spark_metrics: true
+    
+    # Custom metrics
+    custom_metrics:
+      - name: "logs_processed_total"
+        type: "counter"
+        description: "Total number of logs processed"
+        
+      - name: "processing_latency_seconds"
+        type: "histogram"
+        description: "Time taken to process log batches"
+        
+      - name: "anomalies_detected_total"
+        type: "counter"
+        description: "Total number of anomalies detected"
+        
+      - name: "alert_notifications_sent"
+        type: "counter"
+        description: "Number of alert notifications sent"
+        
+  # Health checks
+  health_checks:
+    enabled: true
+    interval: 30  # seconds
+    timeout: 10   # seconds
+    
+    endpoints:
+      - name: "kafka_connectivity"
+        type: "kafka"
+        
+      - name: "spark_cluster"
+        type: "spark"
+        
+      - name: "database_connectivity"
+        type: "postgres"
+        
+      - name: "redis_connectivity"
+        type: "redis"
+
+# Security Configuration
+security:
+  # Authentication
+  authentication:
+    enabled: true
+    method: "jwt"  # jwt, oauth2, basic
+    jwt_secret: "your-secret-key-change-in-production"
+    jwt_expiry: 3600  # 1 hour
+    
+  # Authorization
+  authorization:
+    enabled: true
+    roles:
+      admin:
+        permissions: ["read", "write", "delete", "configure"]
+      operator:
+        permissions: ["read", "write"]
+      viewer:
+        permissions: ["read"]
+        
+  # Data privacy
+  data_privacy:
+    enable_ip_masking: false
+    enable_pii_detection: true
+    data_retention_days: 90
+    anonymization_enabled: false
+    
+  # Network security
+  network_security:
+    allowed_ip_ranges:
+      - "10.0.0.0/8"
+      - "172.16.0.0/12"
+      - "192.168.0.0/16"
+    enable_ssl: false  # Set to true in production
+    ssl_cert_path: "/certs/server.crt"
+    ssl_key_path: "/certs/server.key"
+
+# Logging Configuration
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+  # File logging
+  file:
+    enabled: true
+    path: "/logs/network-monitoring.log"
+    max_size: "100MB"
+    backup_count: 5
+    rotation: "midnight"
+    
+  # Structured logging
+  structured:
+    enabled: true
+    format: "json"
+    include_caller: true
+    include_stack_info: false
+    
+  # Log levels by component
+  component_levels:
+    kafka: "WARNING"
+    spark: "WARNING"
+    root: "INFO"
+    network_monitoring: "DEBUG"
+
+# Development and Testing
+development:
+  # Sample data generation
+  data_simulation:
+    enabled: true
+    logs_per_minute: 100
+    anomaly_injection_rate: 0.05  # 5% of logs are anomalies
+    duration_minutes: 60
+    
+  # Testing configuration
+  testing:
+    unit_tests:
+      coverage_threshold: 80
+      
+    integration_tests:
+      kafka_timeout: 30
+      spark_timeout: 60
+      
+    performance_tests:
+      throughput_target: 10000  # logs per minute
+      latency_target: 100       # milliseconds
+      
+  # Debug settings
+  debug:
+    enable_console_output: true
+    enable_detailed_logging: true
+    save_intermediate_results: false
+    profile_performance: false
+
+# Production Overrides
+production:
+  # Override settings for production environment
+  application:
+    environment: "production"
+    debug: false
+    
+  kafka:
+    bootstrap_servers: "kafka-cluster.production.local:9092"
+    
+  spark:
+    master: "k8s://https://kubernetes.production.local:6443"
+    
+  security:
+    authentication:
+      jwt_secret: "${JWT_SECRET}"  # Use environment variable
+      
+    network_security:
+      enable_ssl: true
+      
+  logging:
+    level: "WARNING"
+    structured:
+      enabled: true
